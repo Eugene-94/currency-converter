@@ -1,24 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
+
+	"github.com/Eugene-94/currency-converter/internal/api"
 )
-
-type request struct {
-	amount float64
-	from   string
-	to     string
-}
-
-type response struct {
-	Rate float64 `json:"conversion_rate"`
-}
 
 func main() {
 	apiKey := os.Getenv("EXCHANGE_RATE_API_KEY")
@@ -30,21 +19,15 @@ func main() {
 
 	validateArgs(amount, from, to)
 
-	params := request{amount: *amount, from: *from, to: *to}
-	url := buildRequest(apiKey, params)
+	params := api.Request{Amount: *amount, From: *from, To: *to}
 
-	resp, _ := http.Get(url)
+	fetched, err := api.FetchRates(apiKey, params)
 
-	body, _ := io.ReadAll(resp.Body)
-
-	defer resp.Body.Close()
-
-	var result response
-	if err := json.Unmarshal(body, &result); err != nil {
-		log.Fatalf("Ошибка при парсинге JSON: %v", err)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
 	}
 
-	fmt.Printf("Результат: %.2f", result.Rate*params.amount)
+	fmt.Printf("Результат: %.2f", convent(fetched.Rate, params.Amount))
 }
 
 func validateArgs(amount *float64, from *string, to *string) {
@@ -61,7 +44,6 @@ func validateArgs(amount *float64, from *string, to *string) {
 	}
 }
 
-func buildRequest(key string, params request) string {
-	url := fmt.Sprintf("https://v6.exchangerate-api.com/v6/%v/pair/%v/%v", key, params.from, params.to)
-	return url
+func convent(rate, amount float64) float64 {
+	return rate * amount
 }
